@@ -77,15 +77,10 @@ app.post('/obtener-rutas', async (req, res) => {
     }
 });
 
-// Endpoint para generar lista de cortes
 app.post('/reporte-cortes', async (req, res) => {
     const { liNrut, liNcnt, liCper } = req.body;
 
-    if (liNrut === undefined || liNcnt === undefined || liCper === undefined) {
-        return res.status(400).send("liNrut, liNcnt, y liCper son requeridos");
-    }
-
-    const soapRequestCortes = `<?xml version="1.0" encoding="utf-8"?>
+    const soapRequest = `<?xml version="1.0" encoding="utf-8"?>
     <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
         <soap:Body>
             <W2Corte_ReporteParaCortesSIG xmlns="http://activebs.net/">
@@ -97,22 +92,23 @@ app.post('/reporte-cortes', async (req, res) => {
     </soap:Envelope>`;
 
     try {
-        const responseCortes = await axios.post('http://190.171.244.211:8080/wsVarios/wsBS.asmx', soapRequestCortes, {
+        const response = await axios.post('http://190.171.244.211:8080/wsVarios/wsBS.asmx', soapRequest, {
             headers: {
                 'Content-Type': 'text/xml; charset=utf-8',
                 'SOAPAction': 'http://activebs.net/W2Corte_ReporteParaCortesSIG'
             }
         });
 
-        console.log("SOAP Response Cortes:", responseCortes.data);
+        const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
+        const result = jsonResponse['soap:Envelope']['soap:Body']['W2Corte_ReporteParaCortesSIGResponse']['W2Corte_ReporteParaCortesSIGResult']['diffgr:diffgram']['NewDataSet']['Table'];
 
-        const jsonResponseCortes = await parseStringPromise(responseCortes.data, { explicitArray: false });
-        res.json(jsonResponseCortes);
+        res.json({ result });
     } catch (error) {
         console.error(error);
-        res.status(500).send("Error al procesar la solicitud de reporte de cortes");
+        res.status(500).send("Error al procesar la solicitud de generar reporte");
     }
 });
+
 
 app.listen(port, '0.0.0.0', () => {
     console.log(`Servidor corriendo en http://0.0.0.0:${port}`);
