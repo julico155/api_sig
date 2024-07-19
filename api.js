@@ -111,7 +111,11 @@ app.post('/reporte-cortes', async (req, res) => {
 app.post('/registrar-corte', async (req, res) => {
     const { liNcoc, liCemc, ldFcor, liPres, liCobc, liLcor, liNofn, lsAppName } = req.body;
 
+    console.log("Datos recibidos:", req.body);
+    console.log("liNcoc:", liNcoc, "liCemc:", liCemc, "ldFcor:", ldFcor, "liPres:", liPres, "liCobc:", liCobc, "liLcor:", liLcor, "liNofn:", liNofn, "lsAppName:", lsAppName);
+
     if (!liNcoc || !liCemc || !ldFcor || !liPres || !liCobc || !liLcor || !liNofn || !lsAppName) {
+        console.log("Campos faltantes en la solicitud:", req.body);
         return res.status(400).send("Todos los campos son requeridos");
     }
 
@@ -156,6 +160,8 @@ app.post('/registrar-corte', async (req, res) => {
         res.status(500).send("Error al procesar la solicitud de registro de corte");
     }
 });
+
+
 
 app.listen(port, '0.0.0.0', () => {
     console.log(`Servidor corriendo en http://0.0.0.0:${port}`);
