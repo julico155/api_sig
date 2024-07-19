@@ -3,6 +3,8 @@ const bodyParser = require('body-parser');
 const axios = require('axios');
 const { parseStringPromise } = require('xml2js');
 
+
+
 const app = express();
 const port = 3000;
 
@@ -99,9 +101,42 @@ app.post('/reporte-cortes', async (req, res) => {
         });
 
         const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
-        const result = jsonResponse['soap:Envelope']['soap:Body']['W2Corte_ReporteParaCortesSIGResponse']['W2Corte_ReporteParaCortesSIGResult']['diffgr:diffgram']['NewDataSet']['Table'];
+        console.log("Parsed JSON Response:", JSON.stringify(jsonResponse, null, 2));
 
-        res.json({ result });
+        const result = jsonResponse['soap:Envelope']['soap:Body']['W2Corte_ReporteParaCortesSIGResponse']['W2Corte_ReporteParaCortesSIGResult'];
+
+        if (result && result['diffgr:diffgram'] && result['diffgr:diffgram']['NewDataSet']) {
+            const tables = result['diffgr:diffgram']['NewDataSet']['Table'];
+
+            const waypoints = tables.map(point => ({
+                lat: parseFloat(point['bscntlati']),
+                lng: parseFloat(point['bscntlogi'])
+            }));
+
+            const origin = waypoints[0];
+            const destination = waypoints[waypoints.length - 1];
+            const waypointsList = waypoints.slice(1, -1).map(p => `via:${p.lat},${p.lng}`).join('|');
+
+            const directionsResponse = await axios.get('https://maps.googleapis.com/maps/api/directions/json', {
+                params: {
+                    origin: `${origin.lat},${origin.lng}`,
+                    destination: `${destination.lat},${destination.lng}`,
+                    waypoints: waypointsList,
+                    key: 'AIzaSyDg1RduUbSjgXiwIKZihOZEZYsvT23HVfI' //Api key, no la toques julio crj
+                }
+            });
+
+            console.log(tables);
+    
+            
+            res.json({
+                result: tables,
+                route: directionsResponse.data
+            });
+        } else {
+            res.status(500).send("Estructura inesperada en la respuesta del servicio SOAP");
+        }
+
     } catch (error) {
         console.error(error);
         res.status(500).send("Error al procesar la solicitud de generar reporte");
