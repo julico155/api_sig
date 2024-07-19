@@ -46,7 +46,6 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// Endpoint para obtener rutas
 app.post('/obtener-rutas', async (req, res) => {
     const soapRequestRutas = `<?xml version="1.0" encoding="utf-8"?>
     <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
@@ -109,6 +108,54 @@ app.post('/reporte-cortes', async (req, res) => {
     }
 });
 
+app.post('/registrar-corte', async (req, res) => {
+    const { liNcoc, liCemc, ldFcor, liPres, liCobc, liLcor, liNofn, lsAppName } = req.body;
+
+    if (!liNcoc || !liCemc || !ldFcor || !liPres || !liCobc || !liLcor || !liNofn || !lsAppName) {
+        return res.status(400).send("Todos los campos son requeridos");
+    }
+
+    const soapRequest = `<?xml version="1.0" encoding="utf-8"?>
+    <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+        <soap12:Body>
+            <W3Corte_UpdateCorte xmlns="http://activebs.net/">
+                <liNcoc>${liNcoc}</liNcoc>
+                <liCemc>${liCemc}</liCemc>
+                <ldFcor>${ldFcor}</ldFcor>
+                <liPres>${liPres}</liPres>
+                <liCobc>${liCobc}</liCobc>
+                <liLcor>${liLcor}</liLcor>
+                <liNofn>${liNofn}</liNofn>
+                <lsAppName>${lsAppName}</lsAppName>
+            </W3Corte_UpdateCorte>
+        </soap12:Body>
+    </soap12:Envelope>`;
+
+    console.log("SOAP Request:", soapRequest);
+
+    try {
+        const response = await axios.post('http://190.171.244.211:8080/wsVarios/wsBS.asmx', soapRequest, {
+            headers: {
+                'Content-Type': 'application/soap+xml; charset=utf-8'
+            }
+        });
+
+        console.log("SOAP Response:", response.data);
+
+        const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
+        const result = jsonResponse['soap:Envelope']?.['soap:Body']?.['W3Corte_UpdateCorteResponse']?.['W3Corte_UpdateCorteResult'];
+
+        if (result === undefined) {
+            console.error("Error: Response format is not as expected:", JSON.stringify(jsonResponse, null, 2));
+            return res.status(500).send("Error al procesar la solicitud de registro de corte");
+        }
+
+        res.json({ result });
+    } catch (error) {
+        console.error("Error:", error.response ? error.response.data : error.message);
+        res.status(500).send("Error al procesar la solicitud de registro de corte");
+    }
+});
 
 app.listen(port, '0.0.0.0', () => {
     console.log(`Servidor corriendo en http://0.0.0.0:${port}`);
